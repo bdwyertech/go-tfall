@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	// m"github.com/goware/prefixer"
 	"github.com/abiosoft/lineprefix"
 	"github.com/hashicorp/go-multierror"
 )
