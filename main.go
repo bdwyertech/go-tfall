@@ -36,6 +36,8 @@ func main() {
 		}
 	}
 
+	stdout, stderr := &lockedWriter{w: os.Stdout}, &lockedWriter{w: os.Stderr}
+
 	var wg sync.WaitGroup
 	cmdCtx := context.Background()
 	var cmdErrs error
@@ -43,7 +45,7 @@ func main() {
 		wg.Add(1)
 		go func(env string) {
 			cmd := exec.CommandContext(cmdCtx, "terraform", os.Args[1:]...)
-			cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, lineprefix.New(lineprefix.Prefix(env+": ")), os.Stderr
+			cmd.Stdout, cmd.Stderr = lineprefix.New(lineprefix.Prefix(env+": "), lineprefix.Writer(stdout)), stderr
 			cmd.Env = append(os.Environ(), "TF_WORKSPACE="+env)
 			if err := cmd.Run(); err != nil {
 				cmdErrs = multierror.Append(cmdErrs, fmt.Errorf("%s: %w", env, err))
@@ -55,4 +57,15 @@ func main() {
 	if cmdErrs != nil {
 		log.Fatal(cmdErrs)
 	}
+}
+
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (w *lockedWriter) Write(b []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.w.Write(b)
 }
